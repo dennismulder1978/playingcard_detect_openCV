@@ -11,10 +11,10 @@ def show_cam(height: int = 1024):
     while True:
         _, frame = cap.read()
         # frame adjustment
-        frame = frame_adjustment(frame=frame, blur=True, canny=True)
+        frame = frame_adjustment(frame=frame, gray=True, blur=True, threshold=True)
 
         # find playingcards
-        frame = find_playingcards(frame)
+       #frame = find_playingcards(frame)
 
         # show image/ image-stream and break
         cv2.imshow('Frame', frame)
@@ -29,14 +29,18 @@ def frame_adjustment(frame,
                      gray=False,
                      blur=False,
                      canny=False,
+                     threshold=False,
                      flip=False):
-
     if gray:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     if blur:
         frame = cv2.GaussianBlur(frame, (7, 7), 0)
     if canny:
         frame = cv2.Canny(frame, 30, 80, 8)
+    if threshold & gray==False:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if threshold:
+        _, frame = cv2.threshold(frame, thresh=125, maxval=255, type=cv2.THRESH_BINARY)
     if flip:
         frame = cv2.flip(frame, 1)
     return frame
