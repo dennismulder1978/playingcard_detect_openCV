@@ -10,7 +10,7 @@ def show_cam(height: int = 1024):
     while True:
         _, frame = cap.read()
         # frame adjustment
-        frame = frame_adjustment(frame=frame, blur=True, threshold=True)
+        frame = frame_adjustment(frame=frame, blur=True, canny=True)
 
         # find playingcards
         frame = find_playingcards(frame)
@@ -39,29 +39,32 @@ def frame_adjustment(frame,
     if blur:
         frame = cv2.GaussianBlur(frame, (5, 5), 0)
     if canny:
-        frame = cv2.Canny(frame, 30, 80, 8)
+        frame = cv2.Canny(frame, 20, 90, 17)
     if flip:
         frame = cv2.flip(frame, 1)
     return frame
 
 
-def find_playingcards(frame):
-    contours = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+def find_playingcards(adjusted_frame, original_frame=False):
+    if not original_frame:
+        original_frame = adjusted_frame
+
+    contours = cv2.findContours(adjusted_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
-    threshold_min_area = 10
+    threshold_min_area = 5
 
     for contour in contours:
         area = cv2.contourArea(contour)
         if area > threshold_min_area:
-            cv2.drawContours(frame, [contour], 0, (36, 255, 12), 3)
-        contour_perimeter = 0.16 * cv2.arcLength(contour, True)
-        approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
-        if len(approx_poly_curve) == 4:
-            (x, y, w, h) = cv2.boundingRect(contour)
-            cv2.putText(frame, f'{x}, {y}, {w}, {h}', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 3)
+            cv2.drawContours(original_frame, [contour], 0, (0, 255, 0), 3)
+        # contour_perimeter = 0.16 * cv2.arcLength(contour, True)
+        # approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
+        # if len(approx_poly_curve) == 4:
+        #     (x, y, w, h) = cv2.boundingRect(contour)
+        #     cv2.putText(frame, f'{x}, {y}, {w}, {h}', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 3)
 
-    return frame
+    return original_frame
 
     # for contour in contours:
     #     M = cv2.moments(contour)
