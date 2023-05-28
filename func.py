@@ -4,16 +4,16 @@ import cv2
 
 def show_cam(height: int = 1024):
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1.25 * height)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, (16/9) * height)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
     while True:
         _, frame = cap.read()
         # frame adjustment
-        frame = frame_adjustment(frame=frame, blur=True, canny=True)
+        adjusted_frame = frame_adjustment(frame=frame, blur=True, canny=True)
 
         # find playingcards
-        frame = find_playingcards(frame)
+        frame = find_playingcards(adjusted_frame=adjusted_frame, original_frame=frame)
 
         # show image/ image-stream and break
         cv2.imshow('Frame', frame)
@@ -45,19 +45,19 @@ def frame_adjustment(frame,
     return frame
 
 
-def find_playingcards(adjusted_frame, original_frame=False):
-    if not original_frame:
+def find_playingcards(adjusted_frame, original_frame=None):
+    if original_frame is None:
         original_frame = adjusted_frame
 
     contours = cv2.findContours(adjusted_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
-    threshold_min_area = 5
+    threshold_min_area = 10
 
     for contour in contours:
         area = cv2.contourArea(contour)
         if area > threshold_min_area:
-            cv2.drawContours(original_frame, [contour], 0, (0, 255, 0), 3)
+            cv2.drawContours(original_frame, [contour], 0, (165, 255, 59), 1)
         # contour_perimeter = 0.16 * cv2.arcLength(contour, True)
         # approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
         # if len(approx_poly_curve) == 4:

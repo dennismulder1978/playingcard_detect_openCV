@@ -1,3 +1,3 @@
 from func import *
 
-show_cam(height=480)
+show_cam()
