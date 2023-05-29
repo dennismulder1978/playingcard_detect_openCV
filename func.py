@@ -1,45 +1,78 @@
-import numpy as np
 import cv2
 
+# variables
+FRAME_ADJUST_BLUR_LEVEL = 5
+THRESHOLD_MIN_AREA = 100
+COLOR_GREEN = (165, 255, 59)
+COLOR_WHITE = (255, 255, 255)
+LINE_WIDTH = 1
+WINDOW_NAME = 'Original'
 
-def show_cam(height: int = 1024):
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, (16/9) * height)
-    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+def show_cam(device: int = 0, width: int = 720):
+    """
+    shows webcam
+    """
+
+    def nothing(x):
+        pass
+
+    cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, (9/16 * width))
+    cv2.namedWindow(WINDOW_NAME)
+    cv2.createTrackbar('Threshold or canny', WINDOW_NAME, 0, 1, nothing)
+    cv2.createTrackbar('Value 1', WINDOW_NAME, 0, 255, nothing)
+    cv2.createTrackbar('Value 2', WINDOW_NAME, 0, 255, nothing)
 
     while True:
         _, frame = cap.read()
+        # Trackbar values
+        adjust_choice = cv2.getTrackbarPos('Threshold or canny', WINDOW_NAME)
+        value1 = cv2.getTrackbarPos('Value 1', WINDOW_NAME)
+        value2 = cv2.getTrackbarPos('Value 2', WINDOW_NAME)
+
         # frame adjustment
-        adjusted_frame = frame_adjustment(frame=frame, blur=True, canny=True)
+        if adjust_choice == 0:
+            adjusted_frame = frame_adjustment(frame=frame, threshold=True, value1=value1)
+        elif adjust_choice == 1:
+            adjusted_frame = frame_adjustment(frame=frame, canny=True, value1=value1, value2=value2)
 
         # find playingcards
-        frame = find_playingcards(adjusted_frame=adjusted_frame, original_frame=frame)
+        end_frame = find_playingcards(adjusted_frame=adjusted_frame, original_frame=frame)
 
         # show image/ image-stream and break
-        cv2.imshow('Frame', frame)
+        cv2.imshow('Adjusted', cv2.flip(adjusted_frame, 1))
+        cv2.imshow(WINDOW_NAME, end_frame)
         if cv2.waitKey(1) == ord('q'):
             break
+
     # clean up
     cap.release()
     cv2.destroyAllWindows()
 
 
 def frame_adjustment(frame,
+                     blur=True,
                      gray=False,
-                     blur=False,
                      canny=False,
                      threshold=False,
-                     flip=False):
+                     flip=False,
+                     value1: int = 0,
+                     value2: int = 0):
+    if blur:
+        frame = cv2.GaussianBlur(frame, (FRAME_ADJUST_BLUR_LEVEL, FRAME_ADJUST_BLUR_LEVEL), 0)
     if gray:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     if threshold:
         if not gray:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, frame = cv2.threshold(frame, thresh=125, maxval=255, type=cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    if blur:
-        frame = cv2.GaussianBlur(frame, (5, 5), 0)
+        frame = cv2.threshold(frame,
+                              thresh=value1,
+                              maxval=255,
+                              type=cv2.THRESH_BINARY)[1]
     if canny:
-        frame = cv2.Canny(frame, 20, 90, 17)
+        frame = cv2.Canny(frame, value1, value2)
     if flip:
         frame = cv2.flip(frame, 1)
     return frame
@@ -52,17 +85,27 @@ def find_playingcards(adjusted_frame, original_frame=None):
     contours = cv2.findContours(adjusted_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
-    threshold_min_area = 10
-
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area > threshold_min_area:
-            cv2.drawContours(original_frame, [contour], 0, (165, 255, 59), 1)
-        # contour_perimeter = 0.16 * cv2.arcLength(contour, True)
-        # approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
-        # if len(approx_poly_curve) == 4:
-        #     (x, y, w, h) = cv2.boundingRect(contour)
-        #     cv2.putText(frame, f'{x}, {y}, {w}, {h}', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 3)
+        if area > THRESHOLD_MIN_AREA:
+            cv2.drawContours(original_frame,
+                             [contour],
+                             0,
+                             COLOR_GREEN,
+                             LINE_WIDTH)
+
+        contour_perimeter = 0.16 * cv2.arcLength(contour, True)
+        approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
+        if len(approx_poly_curve) == 4:
+
+            (x, y, w, h) = cv2.boundingRect(contour)
+            cv2.putText(original_frame,
+                        f'{x}, {y}, {w}, {h}',
+                        (x, y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        COLOR_WHITE,
+                        LINE_WIDTH)
 
     return original_frame
 
