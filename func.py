@@ -6,7 +6,9 @@ THRESHOLD_MIN_AREA = 100
 COLOR_GREEN = (165, 255, 59)
 COLOR_WHITE = (255, 255, 255)
 LINE_WIDTH = 1
-WINDOW_NAME = 'Original'
+WINDOW_NAME_1 = 'Original'
+WINDOW_NAME_2 = 'Adjusted'
+
 
 
 def show_cam(device: int = 0, width: int = 720):
@@ -20,17 +22,22 @@ def show_cam(device: int = 0, width: int = 720):
     cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, (9/16 * width))
-    cv2.namedWindow(WINDOW_NAME)
-    cv2.createTrackbar('Threshold or canny', WINDOW_NAME, 0, 1, nothing)
-    cv2.createTrackbar('Value 1', WINDOW_NAME, 0, 255, nothing)
-    cv2.createTrackbar('Value 2', WINDOW_NAME, 0, 255, nothing)
+    cv2.namedWindow(WINDOW_NAME_1)
+    cv2.namedWindow(WINDOW_NAME_2)
+    cv2.createTrackbar('Threshold or canny', WINDOW_NAME_1, 0, 1, nothing)
+    cv2.createTrackbar('Window value 1', WINDOW_NAME_1, 0, 255, nothing)
+    cv2.createTrackbar('Window value 2', WINDOW_NAME_1, 0, 255, nothing)
+    cv2.createTrackbar('Card value 1', WINDOW_NAME_2, 1, 255, nothing)
+    cv2.createTrackbar('Card value 2', WINDOW_NAME_2, 0, 100, nothing)
 
     while True:
         _, frame = cap.read()
         # Trackbar values
-        adjust_choice = cv2.getTrackbarPos('Threshold or canny', WINDOW_NAME)
-        value1 = cv2.getTrackbarPos('Value 1', WINDOW_NAME)
-        value2 = cv2.getTrackbarPos('Value 2', WINDOW_NAME)
+        adjust_choice = cv2.getTrackbarPos('Threshold or canny', WINDOW_NAME_1)
+        value1 = cv2.getTrackbarPos('Window value 1', WINDOW_NAME_1)
+        value2 = cv2.getTrackbarPos('Window value 2', WINDOW_NAME_1)
+        card_value1 = cv2.getTrackbarPos('Card value 1', WINDOW_NAME_2)
+        card_value2 = cv2.getTrackbarPos('Card value 2', WINDOW_NAME_2)/100
 
         # frame adjustment
         if adjust_choice == 0:
@@ -39,11 +46,15 @@ def show_cam(device: int = 0, width: int = 720):
             adjusted_frame = frame_adjustment(frame=frame, canny=True, value1=value1, value2=value2)
 
         # find playingcards
-        end_frame = find_playingcards(adjusted_frame=adjusted_frame, original_frame=frame)
+        end_frame = find_playingcards(adjusted_frame=adjusted_frame,
+                                      original_frame=frame,
+                                      card_value_1=card_value1,
+                                      card_value_2=card_value2
+                                      )
 
         # show image/ image-stream and break
         cv2.imshow('Adjusted', cv2.flip(adjusted_frame, 1))
-        cv2.imshow(WINDOW_NAME, end_frame)
+        cv2.imshow(WINDOW_NAME_1, end_frame)
         if cv2.waitKey(1) == ord('q'):
             break
 
@@ -78,7 +89,10 @@ def frame_adjustment(frame,
     return frame
 
 
-def find_playingcards(adjusted_frame, original_frame=None):
+def find_playingcards(adjusted_frame,
+                      original_frame=None,
+                      card_value_1=1,
+                      card_value_2=1):
     if original_frame is None:
         original_frame = adjusted_frame
 
@@ -87,14 +101,14 @@ def find_playingcards(adjusted_frame, original_frame=None):
 
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area > THRESHOLD_MIN_AREA:
+        if area > card_value_1:
             cv2.drawContours(original_frame,
                              [contour],
                              0,
                              COLOR_GREEN,
                              LINE_WIDTH)
 
-        contour_perimeter = 0.16 * cv2.arcLength(contour, True)
+        contour_perimeter = card_value_2 * cv2.arcLength(contour, True)
         approx_poly_curve = cv2.approxPolyDP(contour, contour_perimeter, True)
         if len(approx_poly_curve) == 4:
 
